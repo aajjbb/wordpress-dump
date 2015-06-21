@@ -10,7 +10,7 @@ perl script.pl url folder
 url: url for the root folder to be dumped
 folder: folder where images are going to be saved
 =cut
-package file;
+package wordpress_dump;
 
 use strict;
 #use warnings;
@@ -21,10 +21,16 @@ use HTTP::Request;
 use LWP::Simple;
 use Cwd;
 
+use Parallel::ForkManager;
+
 my $memory_image = {};
+my $visited = {};
 my $root_url = $ARGV[0];
-my $visited = 1;
 my $folder = $ARGV[1];
+
+my $pm = new Parallel::ForkManager(100);
+$pm->set_max_procs(100);
+
 
 my @image_extensions = ('.jpg', '.jpeg', '.bmp', '.png');
 
@@ -66,12 +72,15 @@ sub save {
 		$image_name = (substr $filename, 0, $hifen_position) . image_extension($filename);
 	}
 
-	if (!$memory_image->{$image_name} || $image_resolution_txt > $memory_image->{$image_name}) {
-		say $filename;
-
+	if (!$memory_image->{$image_name} && $hifen_position == -1) {
+		$pm->start and next;
+	
 		getstore($url, $folder . '/' . $image_name);
-		
 		$memory_image->{$image_name} = $image_resolution_txt;
+		
+		$pm->finish;
+
+		say "Done ", $filename;
 	}
 }
 
@@ -107,6 +116,12 @@ sub grab {
 	my $robot = WWW::Mechanize->new();
 	
 	$robot->get($url);
+
+	if ($visited->{$url}) {
+		return;
+	}
+
+	$visited->{$url} = 1;
 		
 	for my $link ($robot->links) {
 		if ($link->text !~ /Parent\ Directory/) {
@@ -127,4 +142,7 @@ if (!$folder) {
 
 mkdir($folder);
 
-grab($root_url . '/wp-content/uploads');	
+grab($root_url . '/wp-content/uploads');
+	
+
+
