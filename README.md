@@ -8,13 +8,13 @@ Dependencies:
 	Parallel::ForkManager;
 
 Usage:
-	perl wordpress-dump.pl url folder
+	perl script.pl example.com/path/to/images folder
 
 url: the url of the blog you want to dump
 folder: the folder you want to store the images
 
 TODO:
-	In case of repeated images (difered by resolution) stand with maximum (or minumum) resolution
-	Download images in multithread
+	In case of repeated images (difered by resolution) stand with maximum (or minumum) resolution	
+	
 CHANGES:
 	Added Parallel::ForkManager to parallelize image download

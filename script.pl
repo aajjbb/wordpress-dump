@@ -23,13 +23,32 @@ use Cwd;
 
 use Parallel::ForkManager;
 
+my $MAX_PROCESS = 5;
+
 my $memory_image = {};
 my $visited = {};
 my $root_url = $ARGV[0];
 my $folder = $ARGV[1];
+my $pm = new Parallel::ForkManager($MAX_PROCESS);
 
-my $pm = new Parallel::ForkManager(100);
-$pm->set_max_procs(100);
+=doc
+set image parallel download info (messages and max number of process)
+=cut
+sub setup_parallel {
+	$pm->set_max_procs($MAX_PROCESS);
+
+	$pm->run_on_start(
+		sub {
+			my ($name) = @_;
+			#say "Starting Photo: $name"
+		});
+	
+	$pm->run_on_finish(
+		sub {
+			my ($name) = @_;
+			say "Finishing NAME: $name"
+		});	
+}
 
 
 my @image_extensions = ('.jpg', '.jpeg', '.bmp', '.png');
@@ -53,8 +72,6 @@ sub image_extension {
 =doc
 save image in $url in path $folder . $filename
 =cut
-
-
 sub save {
 	my $url = shift;
 	my $filename = shift;
@@ -73,12 +90,12 @@ sub save {
 	}
 
 	if (!$memory_image->{$image_name} && $hifen_position == -1) {
-		$pm->start and next;
+		$pm->start($image_name) and next;
 	
 		getstore($url, $folder . '/' . $image_name);
 		$memory_image->{$image_name} = $image_resolution_txt;
 		
-		$pm->finish;
+		$pm->finish($image_name);
 
 		say "Done ", $filename;
 	}
@@ -140,9 +157,12 @@ if (!$folder) {
 	$folder = cwd();
 }
 
+#create folder to hold images
 mkdir($folder);
+#setup parallel image download
+setup_parallel;
 
-grab($root_url . '/wp-content/uploads');
+grab($root_url);
 	
 
 
